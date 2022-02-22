@@ -1,149 +1,214 @@
 const canvas = document.getElementById('canvas1');
 const ctx = canvas.getContext('2d');
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
+canvas.width = 500;
+canvas.height = 200;
+let canvasOffsetX = 20; // same as css left 
+let canvasOffsetY = 20; // same as css top 
 
-window.addEventListener('keypress', function(e) {
-    ctx.closePath();
-    if (e.key == 'e') {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        atomArr.length = 0;
-        click = false;
-    }
-})
+let atom1 = new carbon(); // first click atom
+let atom2 = new carbon(); // second click atom
+let isDrawing = true; // is the user drawing or editing
+let atomSelected = 'C'; // current atom being drawn. Carbon, nitrogen, oxygen, ect
+let bondSelected = 1; // single, double, triple, (1, 2, 3)
+let atomRadius = 8; // radius around atom where clicking snaps
+let click = false; // flag for first or second click
+let atoms = new Array();  // when not hovering, draw atoms array
 
-window.addEventListener('resize', function(e) {
-    // create a temporary canvas obj to cache the pixel data //
-    var temp_cnvs = document.createElement('canvas');
-    var temp_cntx = temp_cnvs.getContext('2d');
-// set it to the new width & height and draw the current canvas data into it // 
-    temp_cnvs.width = window.innerWidth; 
-    temp_cnvs.height = window.innerHeight;
+window.addEventListener('resize', resizeCanvas);
+canvas.addEventListener('click', drawing);
+document.getElementById('clearBtn').addEventListener('click', clearCanvas);
+document.getElementById('undoBtn').addEventListener('click', undo);
+document.getElementById('eraseBtn').addEventListener('click', erase);
+document.getElementById('carbonBtn').addEventListener('click', carbonBtn);
+document.getElementById('nitrogenBtn').addEventListener('click', nitrogenBtn);
+document.getElementById('oxygenBtn').addEventListener('click', oxygenBtn);
+document.getElementById('singleBtn').addEventListener('click', singleBtn);
+document.getElementById('doubleBtn').addEventListener('click', doubleBtn);
+document.getElementById('tripleBtn').addEventListener('click', tripleBtn);
+
+function tripleBtn() {
+    isDrawing = false;
+    bondSelected = 3;
+}
+
+function doubleBtn() {
+    isDrawing = false;
+    bondSelected = 2;
+}
+
+function singleBtn() {
+    isDrawing = false;
+    bondSelected = 1;
+}
+
+function oxygenBtn() {
+    isDrawing = false;
+    atomSelected = 'O';
+}
+
+function nitrogenBtn() {
+    isDrawing = false;
+    atomSelected = 'N';
+}
+
+function carbonBtn() {
+    isDrawing = false;
+    atomSelected = 'C';
+}
+
+// IMPLEMENT
+function undo(){}
+
+// IMPLEMENT
+function erase(e) {}
+
+function clearCanvas(e) {
+    if (confirm("Are you sure?") === false) { return; }
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    atoms.length = 0;
+    click = false;
+    isDrawing = true;
+    atomSelected = 'C';
+    bondSelected = 1;
+}
+
+function resizeCanvas() {
+    // create a temporary canvas obj to cache the pixel data 
+    let temp_cnvs = document.createElement('canvas');
+    let temp_cntx = temp_cnvs.getContext('2d');
+    // set it to the new width & height and draw the current canvas data into it 
+    temp_cnvs.width = canvas.width; 
+    temp_cnvs.height = canvas.height;
     temp_cntx.fillStyle = 'white';  // the original canvas's background color
-    temp_cntx.fillRect(0, 0, window.innerWidth, window.innerHeight);
+    temp_cntx.fillRect(0, 0, canvas.width, canvas.height);
     temp_cntx.drawImage(canvas, 0, 0);
-// resize & clear the original canvas and copy back in the cached pixel data //
-    canvas.width = window.innerWidth; 
-    canvas.height = window.innerHeight;
+    // copy back in the cached pixel data 
     ctx.drawImage(temp_cnvs, 0, 0);
-})
-
-// FIX: put moice in the event listener
-mouse1 = {
-    x: undefined,
-    y: undefined,
 }
 
-mouse2 = {
-    x: undefined,
-    y: undefined,
+// draw molecule from data stored in the atoms array
+function drawFromArr(arr) { 
+    // IMPLEMENT: draw atoms array
+
 }
 
-var atomArr = new Array();
-var atomRadius = 5; // radius of atom circle
-var click = false; // first or second click
+// change atom to selected atom type
+function changeAtom(atom) {
+    // IMPLEMENT: change the clicked on atoms object to atom (parameter)
+    if (drawing) { return; }
+    let index = isNewPos(atom);
+    if (index === -1) { return; }
 
-canvas.addEventListener('click', function(e) {
+    // redraw array
+    drawFromArr();
+}
+
+// change bond to selected bond type
+function changeBond(bondType) {
+    // IMPLEMENT:  change the clicked on bond to the bond parameter
+
+    // redraw array
+    drawFromArr();
+}
+
+//
+function drawing(e) {
+    if (!isDrawing) { return; }
     ctx.strokeStyle = 'black';
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 1;
     ctx.beginPath();
     if (click == false) {
-        mouse1.x = e.x;
-        mouse1.y = e.y;
-        checkMouse(mouse1);
-        saveAtomsPosition(mouse1);
+        atom1.x = e.x - canvasOffsetX;
+        atom1.y = e.y - canvasOffsetY;
+        checkAtom(atom1);
         click = !click;
     }
     else {
-        mouse2.x = e.x;
-        mouse2.y = e.y;
-        checkMouse(mouse2);
-        saveAtomsPosition(mouse2);
-        ctx.moveTo(mouse1.x, mouse1.y);
-        ctx.lineTo(mouse2.x, mouse2.y);
+        atom2.x = e.x - canvasOffsetX;
+        atom2.y = e.y - canvasOffsetY;
+        checkAtom(atom2);
+        ctx.moveTo(atom1.x, atom1.y);
+        ctx.lineTo(atom2.x, atom2.y);
         ctx.stroke();
-        drawAtom(mouse1);
-        drawAtom(mouse2);
+        drawAtom(atom1);
+        drawAtom(atom2);
         click = !click;
     }
     ctx.closePath();
-})
-
-canvas.addEventListener('mouseover', function(e) {
-
-})
+}
 
 // Logic if the click does or does not intersect with an atom
-function checkMouse(mouse) {
-    var index = isNewPos(mouse);
+function checkAtom(atom) {
+    let index = isNewPos(atom);
     if ((index == -1) && (click == false)) { // first click does not intersect
-        drawAtom(mouse);
+        drawAtom(atom);
+        saveAtomsPosition(atom); // since the position is unique, save the atom
     }
     else if ((index == -1) && (click == true)) { // second click does not intersect
-        findMouse2XY();
+        findAtom2XY();
+        saveAtomsPosition(atom);; // since the position is unique, save the atom
     }
     else { // first or second click intersect with atom
-        mouse.x = atomArr[index].x; // set mouse to XY of atom intersection
-        mouse.y = atomArr[index].y;
+        atom = atom.copy(atoms[index]); // copy atom 
     }
 }
 
 // checks whether the click intersected with an atom
-function isNewPos(mouse) {
-    var index = -1;
-    for (var i = 0; i < atomArr.length; i++) {
-        if (findDist(atomArr[i], mouse) <= atomRadius) {
-            console.log(findDist(atomArr[i], mouse), i);
+// returns -1 if there is no intersection
+// returns the index of the intersection
+function isNewPos(atom) {
+    let index = -1;
+    for (let i = 0; i < atoms.length; i++) {
+        if (findDist(atoms[i], atom) <= atomRadius) {
             return i;
         }
     }
     return index;
 }
 
-// distance between two points
-function findDist(m1, m2) {
-    return (Math.sqrt(Math.pow(m1.x - m2.x, 2) + Math.pow(m1.y - m2.y, 2)));
+function findDist(a1, a2) {
+    return (Math.sqrt(Math.pow(a1.x - a2.x, 2) + Math.pow(a1.y - a2.y, 2)));
 }
 
 // calculate the unit length (bond length) mouse2 position
-function findMouse2XY() {
-    var len = 45; // length of bond line
-    var x = mouse2.x - mouse1.x;
-    var y = mouse2.y - mouse1.y;
+function findAtom2XY() {
+    let len = 30; // length of bond line
+    let x = atom2.x - atom1.x;
+    let y = atom2.y - atom1.y;
 
-    var m = y / x; // slope
+    let m = y / x; // slope
             
-    if (mouse1.x > mouse2.x) {
-        mouse2.x = - Math.sqrt(len * len / (1 + m * m)) + mouse1.x;
-        mouse2.y = m * (mouse2.x - mouse1.x) + mouse1.y;
+    if (atom1.x > atom2.x) {
+        atom2.x = - Math.sqrt(len * len / (1 + m * m)) + atom1.x;
+        atom2.y = m * (atom2.x - atom1.x) + atom1.y;
     }
-    else if (mouse1.x == mouse2.x) { // same x so slope is undefined (divide by zero)
-        if (mouse2.y > mouse1.y) {
-            mouse2.y = mouse1.y + len;
+    else if (atom1.x == atom2.x) { // same x so slope is undefined (divide by zero)
+        if (atom2.y > atom1.y) {
+            atom2.y = atom1.y + len;
         }
         else {
-            mouse2.y = mouse1.y - len; 
+            atom2.y = atom1.y - len; 
         }
     }
     else {
-        mouse2.x = Math.sqrt(len * len / (1 + m * m)) + mouse1.x;
-        mouse2.y = m * (mouse2.x - mouse1.x) + mouse1.y;
+        atom2.x = Math.sqrt(len * len / (1 + m * m)) + atom1.x;
+        atom2.y = m * (atom2.x - atom1.x) + atom1.y;
     }
 }
 
-// save atom positions
-function saveAtomsPosition(mouse) {
-    let temp = new Object();
-    temp.x = mouse.x;
-    temp.y = mouse.y;
-    atomArr.push(temp);
+function saveAtomsPosition(atom) {
+    let temp = new carbon();
+    temp.copy(atom);
+    atoms.push(temp);
+    console.log(atoms);
 }
 
-// draws the atom 
-function drawAtom(mouse, color) {
-    ctx.fillStyle = 'RGBA(0, 0, 0, 1)';
+function drawAtom(atom) {
+    ctx.font = '12px helvetica';
+    ctx.textAlign = 'center';
+    ctx.textBaseLine = 'middle';
     ctx.beginPath();
-    ctx.arc(mouse.x, mouse.y, atomRadius, 0, 2 * Math.PI);
+    ctx.fillText(atom.name, atom.x, atom.y + 6);
     ctx.closePath();
     ctx.fill();
 }
